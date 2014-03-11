@@ -10,6 +10,7 @@ Copyright (c) 2014 __MyCompanyName__. All rights reserved.
 from __future__ import print_function
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from os.path import expanduser
 from datetime import *
 import sys
 import os.path
@@ -18,18 +19,39 @@ import re
 import codecs
 import smtplib
 
+# Functions
+def read_configuration():
+	config_settings = {}
+	if (os.path.isfile(CONFIG_FILE) == False):
+		#ASSERT: no configuration file
+		#TODO: create a file
+		sys.exit(0)
+	
+	lines = [line.strip() for line in open(CONFIG_FILE)]
+	for line in lines:
+		if (line == "" or line[0] == '#'):
+			continue
+			
+		tokens = line.split('=')
+		config_settings[tokens[0]] = tokens[1];
+		
+	return config_settings
+
 # Get run time for semaphore update at the end
 update_time = datetime.now()
 
-GMAIL_USERNAME = 'jamietoddrubin@gmail.com'
-GMAIL_PASS = 'fqozdqcvhrxrzhqr'
-GMAIL_SERVER = 'smtp.gmail.com'
-EN_ADDRESS = 'jamietr.b9650@m.evernote.com'
-CLIPPINGS_FILE = '/cygdrive/c/Users/rubin/Documents/GitHub/kindle-to-evernote/My Clippings.txt'
-SEMAPHORE = '/cygdrive/c/Users/rubin/Documents/GitHub/kindle-to-evernote/.kindle2en_sem'
+# File locations
+HOME_DIR = expanduser("~")
+CONFIG_FILE = HOME_DIR + '/.kindle2en.cfg'
+
+# Read configuration file
+config = read_configuration()
+
+# Other settings
+SEMAPHORE = HOME_DIR + '.kindle2en_sem'
 RECORD_DELIM = '=========='
 
-if (os.path.isfile(CLIPPINGS_FILE) == False):
+if (os.path.isfile(config['CLIPPINGS_FILE']) == False):
 	# ASSERT: error! Can't find the clippings file; exit cleanly
 	sys.exit(0)
 
@@ -49,7 +71,7 @@ title_notes = {}
 is_title = prev_date = notenote = highlight = 0
 
 # Parse the clippings.txt file
-lines = [line.strip() for line in codecs.open(CLIPPINGS_FILE, 'r', 'utf-8-sig')]
+lines = [line.strip() for line in codecs.open(config['CLIPPINGS_FILE'], 'r', 'utf-8-sig')]
 for line in lines:
 	line_count = line_count + 1
 	if (line_count == 1 or is_title == 1):
@@ -134,18 +156,25 @@ for title, note in title_notes.iteritems():
 	msg['Subject'] = subject
 	
 	# Address the message
-	msg['From'] = GMAIL_USERNAME
-	msg['To'] = EN_ADDRESS
+	msg['From'] = config['GMAIL_USERNAME']
+	msg['To'] = config['EN_ADDRESS']
 	msg = msg.as_string()
 	
 	# Send the message
-	session = smtplib.SMTP(GMAIL_SERVER, 587)
-	session.ehlo()
-	session.starttls()
-	session.login(GMAIL_USERNAME, GMAIL_PASS)
-	session.sendmail(GMAIL_USERNAME, EN_ADDRESS, msg)
-	session.quit()
-	msg_count = msg_count + 1
+	try:
+		session = smtplib.SMTP(config['GMAIL_SERVER'], 587)
+		session.ehlo()
+		session.starttls()
+		session.login(config['GMAIL_USERNAME'], config['GMAIL_PASS'])
+		session.sendmail(config['GMAIL_USERNAME'], config['EN_ADDRESS'], msg)
+	except:
+		pass
+	else:
+		print('Notes updated for ' + title)
+		msg_count = msg_count + 1
+		session.quit()
+	
+	
 
 # Update semaphore file
 f = open(SEMAPHORE, 'w')
@@ -153,4 +182,7 @@ print(update_time.strftime("%Y-%m-%d %H:%M:%S"), file=f)
 f.close()
 
 print(msg_count)
+
+
+
 
