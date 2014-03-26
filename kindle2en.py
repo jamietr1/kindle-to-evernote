@@ -194,9 +194,16 @@ Options:
 		part1 = MIMEText(note.encode('ascii', 'ignore'), 'html')
 		msg.attach(part1)
 		
+		subject = title.encode('ascii', 'ignore')
+
+                # Add notebook from config file, if it exists and is set
+                notebook = config.get('NOTEBOOK', '')
+                if notebook != '':
+                    subject += ' @' + notebook
+
 		# The space-+ at the end of the subject tells Evernote to append this to the most
 		# recent note with the same title, or create a new note if the title does not exist
-		subject = title.encode('ascii', 'ignore') + ' +'
+                subject += ' +'
 		msg['Subject'] = subject
 		
 		# Address the message
